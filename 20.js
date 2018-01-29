@@ -1,206 +1,146 @@
+function Particle(str) {
+    let match = /p=<(.+?),(.+?),(.+?)>,\s*v=<(.+?),(.+?),(.+?)>,\s*a=<(.+?),(.+?),(.+?)>/.exec(str).map(v => parseInt(v))
+    this.p = [match[1], match[2], match[3]]
+    this.v = [match[4], match[5], match[6]]
+    this.a = [match[7], match[8], match[9]]
+}
+
+// load data from file
 const data = require('fs')
-    .readFileSync(__filename.replace(/\.js$/i, '.txt'), { encoding: 'utf8' })
-    .split(/\r\n|\r|\n/g)
+    .readFileSync('20.txt', { encoding: 'utf8' })
+    .split(/\r\n|\n/g)
 
-function Particle(x1, x2, x3, v1, v2, v3, a1, a2, a3) {
-    [this.x1, this.x2, this.x3, this.v1, this.v2, this.v3, this.a1, this.a2, this.a3] = [x1, x2, x3, v1, v2, v3, a1, a2, a3]
-}
-
-Particle.prototype.next = function next() {
-    this.v1 += this.a1
-    this.v2 += this.a2
-    this.v3 += this.a3
-    this.x1 += this.v1
-    this.x2 += this.v2
-    this.x3 += this.v3
-}
-
-let particles = []
-
-for (let line of data) {
-    let match = /p=<(-?\d+),(-?\d+),(-?\d+)>,\s+v=<(-?\d+),(-?\d+),(-?\d+)>,\s+a=<(-?\d+),(-?\d+),(-?\d+)>/.exec(line)
-    particles.push(new Particle(...match.slice(1, match.length).map(v => parseInt(v))))
-}
+// create particles from data
+const particles = data.map(line => new Particle(line))
 
 // Part 1
-let accelerations = [] // find particle with smallest acceleration
-for (let p of particles) {
-    let a = Math.abs(p.a1) + Math.abs(p.a2) + Math.abs(p.a3)
-    accelerations.push(a)
-}
+function abs(prop) { return (prop[0] ** 2 + prop[1] ** 2 + prop[2] ** 2) ** 0.5 }
 
-let min = Math.min(...accelerations)
-let indexMin = accelerations.indexOf(min)
-
-console.log('Part 1:', indexMin)
-
-// Part 2
-// function collision(p1, p2) {
-
-//     let dx = [p1.x1 - p2.x1, p1.x2 - p2.x2, p1.x3 - p2.x3]
-//     let dv = [p1.v1 - p2.v1, p1.v2 - p2.v2, p1.v3 - p2.v3]
-//     let da = [p1.a1 - p2.a1, p1.a2 - p2.a2, p1.a3 - p2.a3]
-
-//     let t = [...Array(3)], p = [...Array(3)], q = [...Array(3)]
-//     p = p.map((v, i) => (dv[i] / da[i]))
-//     q = q.map((v, i) => (2 * dx[i] / da[i]))
-//     t = t.map((v, i) => {
-//         if (da[i] === 0 & dv[i]) return x === 0
-//         else return [-p[i] + (p[i] ** 2 - q[i]) ** 0.5, -p[i] - (p[i] ** 2 - q[i]) ** 0.5]
-//     })
-
-//     // collision when time positive, time is integer, and one point in time for x, y, z 
-//     if (t[0][0] > 0 & Number.isInteger(t[0][0]) & t[0][0] === t[1][0] & t[0][0] === t[2][0]) return true
-//     if (t[0][1] > 0 & Number.isInteger(t[0][1]) & t[0][1] === t[1][1] & t[0][1] === t[2][1]) return true
-//     return false
-// }
-
-function collision(p1, p2) {
-    function collTimeOnDim(p1, p2, i) {
-        let [dx, dv, da] = [p1['x' + i] - p2['x' + i], p1['v' + i] - p2['v' + i], p1['a' + i] - p2['a' + i]]
-        if (da === 0 & dv === 0) return dx === 0 // collision all the time
-        else if (da === 0) return [-dx / dv]
-        else if (dv === 0) return [(-2 * dx / da) ** 0.5]
-        else return [- (dv / da) + ((dv / da) ** 2 - 2 * da / da) ** 0.5, - (dv / da) - ((dv / da) ** 2 - 2 * da / da) ** 0.5]
-    }
-
-    let t = [collTimeOnDim(p1, p2, 1), collTimeOnDim(p1, p2, 2), collTimeOnDim(p1, p2, 3)]
-    // t = [true, [1, -2], [1]]
-    t = t.filter(v => v !== true) // clear lines where equation is true for every t
-    t.forEach((v) => v.filter(v => !Number.isInteger(v) | v < 0)) // clear non Integers and t < 0 for every coordinate
-
-    for (let v of t) if (v.length === 0) return false // when empty solution for a coordinate then no collision
-
-    if (t.length === 0) return true // points are at the same spot for every t
-    else {
-        let sols = [...t[0]]
-        for (i = 1; i < t.length; i++) sols.forEach((s, i) => {
-            if (t.indexOf(s) === -1) s.splice(i, 1)
-        })
-        if (sols.length === 0) return false
-        else return true
-    }
-
-
-}
-
-// let repeat = true
-// while (repeat) {
-//     repeat = false
-//     for (let t = 0; t < 10000; t++) {
-//         for (let i = 0; i < particles.length; i++) {
-//             let found = false
-//             for (let k = i + 1; k < particles.length; k++) {
-//                 if (
-//                     particles[i].x1 === particles[k].x1 &&
-//                     particles[i].x2 === particles[k].x2 &&
-//                     particles[i].x3 === particles[k].x3
-//                 ) {
-//                     found = true
-//                     repeat = true
-//                     particles.splice(k--, 1)
-//                 }
-//             }
-//             if (found) particles.splice(i--, 1)
-//         }
-//         for (let j = 0; j < particles.length; j++) particles[j].next()
-//     }
-// }
-// 
-// console.log('Part 2: ', particles.length)
-
-function col(p1, p2) {
-    let a1 = total(p1, 'a')
-    let a2 = total(p2, 'a')
-    let v1 = total(p1, 'v')
-    let v2 = total(p2, 'v')
-
-    // copy objects, a shall be the faster moving object in the long term
-    let a, b
-    if (a1 === a2) {
-        a = Object.assign({}, v1 > v2 ? p1 : p2)
-        b = Object.assign({}, v1 > v2 ? p2 : p1)
-    } else {
-        a = Object.assign({}, a1 > a2 ? p1 : p2)
-        b = Object.assign({}, a1 > a2 ? p2 : p1)
-    }
-
-    a.__proto__ = p1.__proto__
-    b.__proto__ = p1.__proto__
-
-    function diff(a, b, p = 'x') {
-        return ((a[p + 1] - b[p + 1]) ** 2 + (a[p + 2] + b[p + 2]) ** 2 + (a[p + 3] + b[p + 3]) ** 2) ** 0.5
-    }
-
-    function total(a, p) {
-        return ((a[p + 1]) ** 2 + (a[p + 2]) ** 2 + (a[p + 3]) ** 2) ** 0.5
-    }
-
-    function samePos(a, b) {
-        return a.x1 === b.x1 && a.x2 === b.x2 && a.x3 === b.x3
-    }
-
-    // while distance to 0 does not increase
-    // while distance to b does not increase
-    let prevA_0
-    let prevB_0
-    let prevA_B
-    let currA_0 = total(a, 'x')
-    let currB_0 = total(b, 'x')
-    let currA_B = diff(a, b, 'x')
-    do {
-        if (samePos(a,b)) return true
-        prevA_0 = currA_0
-        prevB_0 = currB_0
-        prevA_B = currA_B
-        a.next()
-        b.next()
-        currA_0 = total(a, 'x')
-        currB_0 = total(b, 'x')
-        currA_B = diff(a, b, 'x')
-    } while (
-        prevA_0 >= currA_0 ||
-        prevB_0 >= currB_0 ||
-        prevA_B > currA_B
-    )
-
-        // loop until a has higher acceleration, velocity and distance from 0 than b
-
-        // while (
-        //     //total(a, 'a') < total(b, 'a') &&
-        //     total(a, 'v') < total(b, 'v')
-        // ) {
-        //     if (samePos(a, b)) return true
-        //     a.next()
-        //     b.next()
-        // }
-
-        // loop until distance between particles is increasing
-        // let prevDistance
-        // let currDistance = diff(a, b, 'x')
-        // do {
-        //     if (samePos(a, b)) return true
-        //     prevDistance = currDistance
-        //     a.next()
-        //     b.next()
-        //     currDistance = diff(a, b, 'x')
-        // } while (prevDistance >= currDistance);
-
-        return false
-}
-
-for (let i = 0; i < particles.length; i++) {
-    let found = false
-    for (let k = i + 1; k < particles.length; k++) {
-        if (col(particles[i], particles[k])) {
-            found = true
-            particles.splice(k--, 1)
+// find particles with minimum acceleration (velocity and distance if equal)
+let closest = 0
+for (let i = 1; i < particles.length; i++) {
+    if (abs(particles[i].a) < abs(particles[closest].a)) {
+        closest = i
+    } else if (abs(particles[i].a) === abs(particles[closest].a)) {
+        if (abs(particles[i].v) < abs(particles[closest].v)) {
+            closest = i
+        } else if (abs(particles[i].v) === abs(particles[closest].v)) {
+            if (abs(particles[i].p) < abs(particles[closest].p)) closest = i
         }
     }
-    if (found) {
-        particles.splice(i--, 1)
-        console.log(particles.length)
-    }
 }
 
-console.log('Part 2:', particles.length)
+console.log('Part 1:', closest)
+
+// Part 2
+
+// /** returns velocity v of particle for a given time t */
+// Particle.prototype.vAt = function (t) { return this.v.map((v, i) => v + this.a[i] * t) }
+// /** returns acceleration a of particle for a given time t */
+// Particle.prototype.pAt = function (t) { return this.p.map((p, i) => p + (this.v[i] * t) + (t + t * t) / 2 * this.a[i]) }
+
+/** returns an array of timings where the particles collide */
+Particle.collision = function (p1, p2) {
+    /** Input of the form a*x^2+b^x+c=0 
+      * Returns an array of numbers for every solution.
+      * A return value of true means that there is a solution for every x.
+      * Returns false if there is no solution.
+      */
+    function solveQuadraticEquation(a, b, c) {
+        let d
+        if (a === 0) {
+            if (b === 0) {
+                if (c === 0) {
+                    return true
+                } else {
+                    return false
+                }
+            } else {
+                return [-c / b]
+            }
+        } else {
+            if ((d = b ** 2 - 4 * a * c) < 0) {
+                return false
+            } else if (d === 0) {
+                return [-b / (2 * a)]
+            } else {
+                return [(-b - d ** 0.5) / (2 * a), (-b + d ** 0.5) / (2 * a)]
+            }
+        }
+    }
+    /** Looks for one common solution under every dimsension */
+    function commonSolution(arr) {
+        // Filter impossible or always possible solutions
+        if (arr.indexOf(false) !== -1) return false // filter false
+        arr = arr.filter(v => v !== true) // filter true
+        if (arr.length === 0) return [0] // all true
+        arr = arr.map(set => set.filter(v => Number.isInteger(Math.round(v * 10) / 10))) // only integers are allowed
+        arr = arr.map(set => set.filter(v => v >= 0)) // filter negative values
+        if (arr.map(set => set.length === 0).indexOf(true) !== -1) return false // check for empty arrays
+
+        // Look for one common solution
+        let solutions = []
+        for (let i = 0; i < arr[0].length; i++) {
+            let collision = true
+            for (let j = 1; j < arr.length; j++) {
+                collision = collision && (arr[j].indexOf(arr[0][i]) !== -1)
+            }
+            if (collision) solutions.push(arr[0][i])
+        }
+        return (solutions.length > 0 ? solutions.sort((a, b) => a - b) : false)
+    }
+
+    // Solve the following quadratic equation for every dimension
+    // 0 = t^2 + (1 + 2*Δv/Δa) * t + 2 * Δp/Δa
+    let collisionTimings = []
+    for (let i = 0; i < 3; i += 1) {
+        // a * x^2 + b * x + c = 0
+        let a = p1.a[i] - p2.a[i]
+        let b = p1.a[i] - p2.a[i] + 2 * (p1.v[i] - p2.v[i])
+        let c = 2 * (p1.p[i] - p2.p[i])
+        collisionTimings.push(solveQuadraticEquation(a, b, c))
+    }
+
+    // See if collision timings on all axes match
+    return commonSolution(collisionTimings)
+}
+
+// create array of collisions [{timings: [10, 30], p1: 26, p2: 110}, ...]
+let collisions = []
+for (let i = 0; i < particles.length - 1; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+        let collision = Particle.collision(particles[i], particles[j])
+        if (collision) collisions.push({
+            timings: collision.slice(),
+            p1: i,
+            p2: j
+        })
+    }
+}
+collisions.sort((a, b) => a.timings[0] - b.timings[0]) // ... and sort it by first collision timing
+
+let collided = new Set() // set of already collided particles
+let tempCollided = [] // temporary array to collect particles colliding at the same point in time
+let timing = collisions[0].timings[0]
+while (collisions.length) {
+    // new timing for a collision?
+    if (timing !== collisions[0].timings[0]) {
+        tempCollided.forEach(v => collided.add(v)) // add temporary collisions to final set
+        tempCollided = [] // clear temporary collision
+        timing = collisions[0].timings[0] // new timing
+    }
+
+    // if particles have not collided yet, let them collide
+    if (!collided.has(collisions[0].p1) && !collided.has(collisions[0].p2)) {
+        tempCollided.push(collisions[0].p1) // p1 collides
+        tempCollided.push(collisions[0].p2) // p2 collides
+    }
+
+    // remove collision from array if no further collisions in the future
+    collisions[0].timings.splice(0, 1)
+    if (collisions[0].timings.length === 0) collisions.splice(0, 1)
+    else collisions.sort((a, b) => a.timings[0] - b.timings[0])
+}
+tempCollided.forEach(v => collided.add(v))
+
+console.log('Part 2:', particles.length - collided.size)
